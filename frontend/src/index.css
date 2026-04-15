@@ -1065,3 +1065,136 @@ input[type="range"]::-webkit-slider-thumb:hover { transform: scale(1.25); }
   color: var(--text-tertiary);
   border-top: 1px solid var(--border);
 }
+
+/* ═══════════════════════════════════════════
+   DISTRIBUTION / INEQUALITY TAB
+   ═══════════════════════════════════════════ */
+.tab-container { position: relative; z-index: 1; }
+
+.tab-placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 400px;
+  position: relative;
+  z-index: 1;
+}
+
+.placeholder-content {
+  text-align: center;
+  max-width: 420px;
+  padding: 48px;
+}
+
+.placeholder-icon {
+  font-size: 3rem;
+  margin-bottom: 16px;
+}
+
+.placeholder-content h3 {
+  font-family: 'Playfair Display', serif;
+  font-size: 1.4rem;
+  font-weight: 700;
+  margin-bottom: 12px;
+  color: var(--text-primary);
+}
+
+.placeholder-content p {
+  font-size: 0.9rem;
+  line-height: 1.6;
+  color: var(--text-secondary);
+}
+
+.grid-2-1 {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 24px;
+}
+
+@media (max-width: 1100px) {
+  .grid-2-1 { grid-template-columns: 1fr; }
+}
+
+.card-header {
+  margin-bottom: 8px;
+}
+
+.card-header h3 {
+  font-family: 'Playfair Display', serif;
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 4px;
+}
+
+.card-header p {
+  font-size: 0.8rem;
+  color: var(--text-tertiary);
+}
+
+.side-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.stat-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.stat-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.stat-label {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+.stat-value {
+  font-family: 'Playfair Display', serif;
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.stat-delta {
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: var(--radius-pill);
+}
+
+.stat-delta.trend-up {
+  background: rgba(52, 211, 153, 0.1);
+  color: var(--green);
+}
+
+.stat-delta.trend-down {
+  background: rgba(248, 113, 113, 0.1);
+  color: var(--red);
+}
+
+.stat-description {
+  font-size: 0.8rem;
+  line-height: 1.5;
+  color: var(--text-tertiary);
+}
+
+.divider {
+  height: 1px;
+  background: var(--border);
+  margin: 4px 0;
+}
+
+.anim-fade-in {
+  animation: fadeUp 0.5s var(--ease) forwards;
+}
+

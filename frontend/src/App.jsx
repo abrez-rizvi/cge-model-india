@@ -13,6 +13,7 @@ import OverviewTab from './components/OverviewTab';
 import GDPImpactTab from './components/GDPImpact';
 import EmploymentTab from './components/EmploymentTab';
 import ScenarioTab from './components/ScenarioTab';
+import DistributionTab from './components/DistributionTab';
 import { COLORS, NAMES } from './scripts/constants';
 
 
@@ -20,6 +21,7 @@ const LandingPage = ({ eq }) => (
   <div className="landing">
     <HeroVideo />
     <div style={{ position: 'relative', zIndex: 10 }}>
+      {/* ... previous nav ... */}
       <nav className="landing-nav">
         <div style={{ display: "flex", flexDirection: "row", alignItems: "center", gap: "10px", justifyContent: "center" }}>
           <img src="/equillio.png" alt="Equillio Logo" height={25} width={25} />
@@ -45,6 +47,11 @@ const LandingPage = ({ eq }) => (
           Simulate tax, subsidy, and factor supply shocks to analyze their impact
           on GDP, employment, and sectoral output in real time.
         </p>
+        {!eq?.converged && (
+           <div style={{ padding: '15px', background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.2)', borderRadius: '8px', color: '#f87171', fontSize: '0.9rem', marginBottom: '20px' }}>
+             <strong>Solver Warning:</strong> {eq?.message || "Model calibration in progress..."}
+           </div>
+        )}
         <div className="landing-cta-group">
           <Link to="/dashboard" className="btn-cta-primary">
             Open Dashboard <ArrowRight size={16} />
@@ -83,7 +90,7 @@ const LandingPage = ({ eq }) => (
           <div className="landing-stat-label">Equations</div>
         </div>
         <div className="landing-stat">
-          <div className="landing-stat-value">₹{eq.gdp.toFixed(0)}</div>
+          <div className="landing-stat-value">₹{(eq?.gdp || 0).toFixed(0)}</div>
           <div className="landing-stat-label">Baseline GDP</div>
         </div>
         <div className="landing-stat">
@@ -170,7 +177,8 @@ export default function App() {
     tax_rates: {}, subsidies: {}, labor_supply: 1.0, capital_supply: 1.0
   });
 
-  const sectors = ['AGR', 'MFG', 'SRV', 'ENG', 'CON', 'GOV'];
+  const sectors = data ? data.parameters.sectors : [];
+  const laborTypes = data ? data.parameters.labor_types : [];
 
   useEffect(() => { load(); }, []);
 
@@ -179,9 +187,13 @@ export default function App() {
     try {
       const r = await fetchBaseline();
       setData(r);
-      const t = {};
-      r.parameters.sectors.forEach((s, i) => { t[s] = r.parameters.tax_rates[i]; });
-      setShocks(p => ({ ...p, tax_rates: t }));
+      if (r.parameters && r.parameters.sectors) {
+        const t = {};
+        r.parameters.sectors.forEach((s, i) => { 
+          t[s] = r.parameters.tax_rates[i]; 
+        });
+        setShocks(p => ({ ...p, tax_rates: t }));
+      }
     } catch (e) { console.error(e); }
     finally { setLoading(false); }
   };
@@ -221,19 +233,31 @@ export default function App() {
     );
   }
 
-  const eq = sim ? sim.scenario : data.equilibrium;
+  const eq = sim ? sim.scenario : (data ? data.equilibrium : null);
   const d = sim ? sim.deltas : null;
 
-  const sd = sectors.map((s, i) => ({
-    name: s, full: NAMES[s], color: COLORS[i],
-    va: eq.value_added[s], price: eq.prices[s],
-    labor: eq.labor[s], capital: eq.capital[s],
-    output: eq.output[s], share: eq.gdp_shares[s] * 100
-  }));
+  if (!eq) return <div className="loader">Initializing...</div>;
+
+  const sd = sectors.map((s, i) => {
+    const l_obj = eq.labor ? eq.labor[s] : 0;
+    const total_l = (l_obj && typeof l_obj === 'object') ? Object.values(l_obj).reduce((a, b) => a + b, 0) : (l_obj || 0);
+    
+    return {
+      name: s, full: NAMES[s] || s, color: COLORS[i % COLORS.length],
+      va: (eq.value_added && eq.value_added[s]) ? eq.value_added[s] : 0, 
+      price: (eq.prices && eq.prices[s]) ? eq.prices[s] : 1,
+      labor: total_l, 
+      labor_split: l_obj || {},
+      capital: (eq.capital && eq.capital[s]) ? eq.capital[s] : 0,
+      output: (eq.output && eq.output[s]) ? eq.output[s] : 0, 
+      share: (eq.value_added && eq.gdp) ? (eq.value_added[s] / eq.gdp * 100) : 0
+    };
+  });
 
   const tabs = [
     { id: 'overview', label: 'Overview', path: 'overview' },
     { id: 'gdp', label: 'GDP Impact', path: 'gdp' },
+    { id: 'distribution', label: 'Inequality', path: 'inequality' },
     { id: 'employment', label: 'Employment', path: 'employment' },
     { id: 'scenario', label: 'Scenario', path: 'scenario' },
   ];
@@ -247,6 +271,7 @@ export default function App() {
         <Route index element={<Navigate to="overview" replace />} />
         <Route path="overview" element={<OverviewTab />} />
         <Route path="gdp" element={<GDPImpactTab />} />
+        <Route path="inequality" element={<DistributionTab />} />
         <Route path="employment" element={<EmploymentTab />} />
         <Route path="scenario" element={<ScenarioTab />} />
       </Route>

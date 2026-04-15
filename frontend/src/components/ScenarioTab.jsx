@@ -109,8 +109,8 @@ const ScenarioTab = () => {
                                             <td className={d.labor[s].percent >= 0 ? 'val-up' : 'val-down'}>
                                                 {d.labor[s].percent >= 0 ? '+' : ''}{d.labor[s].percent.toFixed(2)}%
                                             </td>
-                                            <td className={d.value_added[s].percent >= 0 ? 'val-up' : 'val-down'}>
-                                                {d.value_added[s].percent >= 0 ? '+' : ''}{d.value_added[s].percent.toFixed(2)}%
+                                            <td className={d.output[s].percent >= 0 ? 'val-up' : 'val-down'}>
+                                                {d.output[s].percent >= 0 ? '+' : ''}{d.output[s].percent.toFixed(2)}%
                                             </td>
                                         </tr>
                                     ))}

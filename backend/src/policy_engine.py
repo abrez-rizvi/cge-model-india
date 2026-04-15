@@ -1,49 +1,32 @@
 """
-Policy Simulation Engine
+Policy Simulation Engine (Multi-Labor Supported)
 
 Applies policy shocks to baseline parameters and computes
-the new equilibrium, then calculates the deltas (changes)
-relative to the baseline.
-
-Supported policy shocks:
-  - tax_rates: dict of sector -> new tax rate
-  - subsidies: dict of sector -> subsidy rate (reduces effective tax)
-  - labor_supply: float multiplier on total labor supply
-  - capital_supply: float multiplier on total capital supply
+the new equilibrium, then calculates the deltas (changes).
 """
 
 import copy
 import numpy as np
-from .sam_data import get_baseline_params, SECTORS
+from .sam_data import get_baseline_params
 from .cge_solver import solve
 
 
 def apply_policy(baseline_params, shocks):
     """
     Apply policy shocks to baseline parameters.
-
-    Args:
-        baseline_params: dict from get_baseline_params()
-        shocks: dict with optional keys:
-            - tax_rates: {sector_code: new_rate} e.g. {"MFG": 0.20}
-            - subsidies: {sector_code: subsidy_rate} e.g. {"AGR": 0.05}
-            - labor_supply: multiplier (e.g. 1.10 for 10% increase)
-            - capital_supply: multiplier (e.g. 1.05 for 5% increase)
-
-    Returns:
-        Modified parameter dict ready for the solver.
     """
     params = copy.deepcopy(baseline_params)
     sectors = params["sectors"]
+    labor_types = params["labor_types"]
 
-    # Apply tax rate changes
+    # 1. Tax rate changes
     if "tax_rates" in shocks:
         for sector, rate in shocks["tax_rates"].items():
             if sector in sectors:
                 idx = sectors.index(sector)
                 params["tax_rates"][idx] = rate
 
-    # Apply subsidies (reduce effective tax rate)
+    # 2. Subsidies
     if "subsidies" in shocks:
         for sector, subsidy in shocks["subsidies"].items():
             if sector in sectors:
@@ -52,13 +35,22 @@ def apply_policy(baseline_params, shocks):
                     params["tax_rates"][idx] - subsidy, -0.50
                 )
 
-    # Apply labor supply shock
+    # 3. Labor supply shocks (can be targeted or general)
+    # If "labor_supply" is a float, apply to all types.
+    # If it's a dict, apply to specific types: {"Unskilled": 1.10}
     if "labor_supply" in shocks:
-        multiplier = shocks["labor_supply"]
-        params["total_labor"] *= multiplier
-        params["labor_by_sector"] *= multiplier
+        s = shocks["labor_supply"]
+        if isinstance(s, (int, float)):
+            params["total_labor"] *= s
+            params["labor_by_sector"] *= s
+        elif isinstance(s, dict):
+            for lt, multiplier in s.items():
+                if lt in labor_types:
+                    k = labor_types.index(lt)
+                    params["total_labor"][k] *= multiplier
+                    params["labor_by_sector"][:, k] *= multiplier
 
-    # Apply capital supply shock
+    # 4. Capital supply shock
     if "capital_supply" in shocks:
         multiplier = shocks["capital_supply"]
         params["total_capital"] *= multiplier
@@ -68,137 +60,70 @@ def apply_policy(baseline_params, shocks):
 
 
 def simulate(shocks):
-    """
-    Run a full simulation: baseline → apply shocks → solve → compute deltas.
-
-    Args:
-        shocks: dict of policy shocks (see apply_policy)
-
-    Returns:
-        dict with baseline, scenario, and delta results.
-    """
+    """Full simulation: baseline -> shocks -> solve -> deltas."""
     baseline_params = get_baseline_params()
 
     # Solve baseline
     baseline_result = solve(baseline_params)
     if not baseline_result["converged"]:
-        return {
-            "error": "Baseline solver did not converge",
-            "details": baseline_result["message"],
-        }
+        return {"error": "Baseline solver did not converge"}
 
-    # Apply shocks and solve scenario
+    # Apply shocks
     scenario_params = apply_policy(baseline_params, shocks)
     scenario_result = solve(scenario_params)
     if not scenario_result["converged"]:
-        return {
-            "error": "Scenario solver did not converge",
-            "details": scenario_result["message"],
-        }
+        return {"error": "Scenario solver did not converge"}
 
     # Compute deltas
-    deltas = compute_deltas(baseline_result, scenario_result)
-
     return {
         "baseline": baseline_result,
         "scenario": scenario_result,
-        "deltas": deltas,
+        "deltas": compute_deltas(baseline_result, scenario_result),
         "shocks_applied": shocks,
     }
 
 
 def compute_deltas(baseline, scenario):
-    """
-    Compute percentage and absolute changes between baseline and scenario.
-    """
-    sectors = list(baseline["output"].keys())
+    """Compute changes with support for segmented labor and multi-household."""
+    sectors = list(baseline["value_added"].keys())
+    labor_types = list(baseline["total_labor"].keys())
 
-    # GDP change
-    gdp_change = scenario["gdp"] - baseline["gdp"]
-    gdp_change_pct = (gdp_change / baseline["gdp"]) * 100
+    def get_change(b_val, s_val):
+        abs_diff = s_val - b_val
+        pct_diff = (abs_diff / b_val * 100) if b_val != 0 else 0
+        return {"absolute": abs_diff, "percent": pct_diff}
 
-    # Sectoral output changes
-    output_changes = {}
-    for s in sectors:
-        base_val = baseline["output"][s]
-        scen_val = scenario["output"][s]
-        output_changes[s] = {
-            "absolute": scen_val - base_val,
-            "percent": ((scen_val - base_val) / base_val) * 100 if base_val != 0 else 0,
-        }
-
-    # Value added changes
-    va_changes = {}
-    for s in sectors:
-        base_val = baseline["value_added"][s]
-        scen_val = scenario["value_added"][s]
-        va_changes[s] = {
-            "absolute": scen_val - base_val,
-            "percent": ((scen_val - base_val) / base_val) * 100 if base_val != 0 else 0,
-        }
-
-    # Employment (labor) changes
-    labor_changes = {}
-    for s in sectors:
-        base_val = baseline["labor"][s]
-        scen_val = scenario["labor"][s]
-        labor_changes[s] = {
-            "absolute": scen_val - base_val,
-            "percent": ((scen_val - base_val) / base_val) * 100 if base_val != 0 else 0,
-        }
-
-    # Price changes
-    price_changes = {}
-    for s in sectors:
-        base_val = baseline["prices"][s]
-        scen_val = scenario["prices"][s]
-        price_changes[s] = {
-            "absolute": scen_val - base_val,
-            "percent": ((scen_val - base_val) / base_val) * 100 if base_val != 0 else 0,
-        }
-
-    # Capital return change
-    r_change = scenario["rental_rate"] - baseline["rental_rate"]
-    r_change_pct = (r_change / baseline["rental_rate"]) * 100 if baseline["rental_rate"] != 0 else 0
-
-    return {
-        "gdp": {
-            "absolute": gdp_change,
-            "percent": gdp_change_pct,
-        },
-        "rental_rate": {
-            "absolute": r_change,
-            "percent": r_change_pct,
-        },
-        "output": output_changes,
-        "value_added": va_changes,
-        "labor": labor_changes,
-        "prices": price_changes,
+    # Macro
+    deltas = {
+        "gdp": get_change(baseline["gdp"], scenario["gdp"]),
+        "rental_rate": get_change(baseline["rental_rate"], scenario["rental_rate"]),
+        "output": {s: get_change(baseline["value_added"][s], scenario["value_added"][s]) for s in sectors},
+        "prices": {s: get_change(baseline["prices"][s], scenario["prices"][s]) for s in sectors},
     }
 
+    # Wage changes
+    deltas["wages"] = {lt: get_change(baseline["wages"][lt], scenario["wages"][lt]) for lt in labor_types}
 
-# ---------------------------------------------------------------------------
-# Quick self-test
-# ---------------------------------------------------------------------------
-if __name__ == "__main__":
-    # Test: increase manufacturing tax by 10 percentage points
-    result = simulate({
-        "tax_rates": {"MFG": 0.22}  # from 0.12 to 0.22
-    })
+    # Labor changes (Total and by sector)
+    deltas["total_labor"] = {lt: get_change(baseline["total_labor"][lt], scenario["total_labor"][lt]) for lt in labor_types}
+    
+    # Household Distributional Impact
+    hhd_names = list(baseline["real_incomes"].keys())
+    deltas["real_incomes"] = {h: get_change(baseline["real_incomes"][h], scenario["real_incomes"][h]) for h in hhd_names}
+    
+    # Detailed labor shifts by sector and type
+    deltas["labor"] = {}
+    for s in sectors:
+        deltas["labor"][s] = {
+            lt: get_change(baseline["labor"][s][lt], scenario["labor"][s][lt])
+            for lt in labor_types
+        }
+        # Add total for backward compatibility in results table
+        b_sum = sum(baseline["labor"][s].values())
+        s_sum = sum(scenario["labor"][s].values())
+        deltas["labor"][s]["total"] = get_change(b_sum, s_sum)
+        # Map the top level to total for simple table access
+        deltas["labor"][s]["percent"] = deltas["labor"][s]["total"]["percent"]
+        deltas["labor"][s]["absolute"] = deltas["labor"][s]["total"]["absolute"]
 
-    if "error" in result:
-        print(f"Error: {result['error']}")
-    else:
-        print("=== Policy Simulation: +10pp MFG Tax ===")
-        print(f"Baseline GDP: {result['baseline']['gdp']:.4f}")
-        print(f"Scenario GDP: {result['scenario']['gdp']:.4f}")
-        print(f"GDP Change: {result['deltas']['gdp']['percent']:.2f}%")
-        print(f"\nRental rate: {result['baseline']['rental_rate']:.4f} → "
-              f"{result['scenario']['rental_rate']:.4f} "
-              f"({result['deltas']['rental_rate']['percent']:+.2f}%)")
-        print(f"\nOutput changes:")
-        for s, v in result['deltas']['output'].items():
-            print(f"  {s}: {v['percent']:+.2f}%")
-        print(f"\nLabor shifts:")
-        for s, v in result['deltas']['labor'].items():
-            print(f"  {s}: {v['percent']:+.2f}%")
+    return deltas

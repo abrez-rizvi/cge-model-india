@@ -60,11 +60,11 @@ const OverviewTab = () => {
           <div className="card-head">
             <span className="card-label"><span className="label-dot" /> GDP Composition</span>
           </div>
-          <div className="chart-area">
+          <div className="chart-area" style={{ height: 400 }}>
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
-                <Pie data={sd} cx="50%" cy="50%" innerRadius={55} outerRadius={100}
-                  paddingAngle={4} dataKey="va" stroke="none">
+                <Pie data={sd} cx="50%" cy="50%" innerRadius={80} outerRadius={140}
+                  paddingAngle={3} dataKey="va" stroke="none">
                   {sd.map((e, i) => <Cell key={i} fill={COLORS[i]} />)}
                 </Pie>
                 <Tooltip content={<Tip />} isAnimationActive={false} cursor={{ fill: 'transparent' }} />

@@ -20,7 +20,7 @@ def get_baseline():
     # Get SAM
     sam_result = get_sam()
     sam_data = {
-        "matrix": sam_result["matrix"].tolist(),
+        "matrix": sam_result["matrix"],
         "accounts": sam_result["accounts"],
         "verification": sam_result["verification"],
     }
@@ -34,12 +34,18 @@ def get_baseline():
         "equilibrium": equilibrium,
         "parameters": {
             "sectors": params["sectors"],
-            "labor_share": params["labor_share"].tolist(),
+            "labor_types": params["labor_types"],
+            "labor_shares": params["labor_shares"].tolist(),
             "tax_rates": params["tax_rates"].tolist(),
-            "consumption_shares": params["consumption_shares"].tolist(),
-            "savings_rate": params["savings_rate"],
-            "total_labor": float(params["total_labor"]),
+            "consumption_matrix": params["hhd_consumption_matrix"].tolist(),
+            "consumption_shares": params["hhd_consumption_matrix"].mean(axis=1).tolist(),
+            "hhd_savings_rates": params["hhd_savings_rates"].tolist(),
+            "savings_rate": float(params["hhd_savings_rates"].mean()),
+            "total_labor": params["total_labor"].tolist(),
             "total_capital": float(params["total_capital"]),
+            "hhd_names": params["hhd_names"],
+            "hhd_groups": params["hhd_groups"],
+            "hhd_map": params["hhd_map"]
         }
     })
 
