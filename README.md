@@ -19,21 +19,25 @@ A professional, Computable General Equilibrium (CGE) model for the Indian econom
 
 ```text
 .
-├── src/backend/        # Core CGE logic and API logic
-│   ├── api.py          # Flask Blueprints
-│   ├── cge_solver.py   # Math model & solver
-│   ├── sam_data.py     # Social Accounting Matrix calibration
-│   └── policy_engine.py # Simulation deltas
+├── backend/            # Flask API backend
+│   ├── app.py          # Flask entry point
+│   ├── requirements.txt # Python dependencies
+│   └── src/
+│       ├── api.py          # Flask Blueprints
+│       ├── cge_solver.py   # Math model & solver
+│       ├── sam_data.py     # Social Accounting Matrix calibration
+│       └── policy_engine.py # Simulation deltas
 ├── frontend/           # React application
 │   └── src/            # Dashboard UI & API services
-├── app.py              # Main API entry point
-└── requirements.txt    # Python dependencies
+└── README.md
 ```
 
 ## 🏁 Getting Started
 
 ### 1. Backend Setup
 ```bash
+cd backend
+
 # Install dependencies
 pip install -r requirements.txt
 
