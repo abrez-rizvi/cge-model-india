@@ -5,7 +5,7 @@ import { Play, RotateCcw, Zap, RefreshCw } from 'lucide-react';
 import PolicySlider from './PolicySlider';
 
 const ScenarioTab = () => {
-    const { sectors, shocks, setShocks, simulate, running, reset, d } = useOutletContext();
+    const { sectors, shocks, setShocks, simulate, running, reset, d, data } = useOutletContext();
     return (
         <>
             <div className="content-header">
@@ -46,8 +46,9 @@ const ScenarioTab = () => {
                                     key={s}
                                     label={NAMES[s]}
                                     value={shocks.tax_rates[s] || 0}
-                                    min={0} max={0.50}
+                                    min={-0.20} max={0.50}
                                     suffix="%"
+                                    baseline={data?.parameters.tax_rates[i]}
                                     color={COLORS[i]}
                                     onChange={v => setShocks({ ...shocks, tax_rates: { ...shocks.tax_rates, [s]: v } })}
                                 />
